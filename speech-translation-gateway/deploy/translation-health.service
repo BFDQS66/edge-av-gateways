@@ -1,0 +1,6 @@
+[Unit]
+Description=Check local translation services
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/workspace/speech-translation-gateway/scripts/healthcheck_translation.py

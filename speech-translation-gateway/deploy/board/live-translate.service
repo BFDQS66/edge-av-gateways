@@ -1,0 +1,25 @@
+[Unit]
+Description=Orange Pi continuous microphone translation display
+After=speech-gateway.service translation-gateway.service quality-tts.service
+Wants=speech-gateway.service translation-gateway.service quality-tts.service
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=%h/workspace/speech-translation-gateway
+ExecStartPre=/usr/bin/bash %h/workspace/speech-translation-gateway/scripts/board_audio_route.sh main
+ExecStart=/usr/bin/python3 %h/workspace/speech-translation-gateway/scripts/live_translate.py
+Restart=always
+RestartSec=3
+TimeoutStopSec=10
+MemoryMax=256M
+TasksMax=64
+LimitNOFILE=512
+NoNewPrivileges=yes
+PrivateTmp=yes
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=default.target

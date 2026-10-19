@@ -1,0 +1,10 @@
+[
+  {"source":"zh","target":"en","text":"请在下午五点前关闭摄像头。","reference":"Please turn off the camera before 5 p.m."},
+  {"source":"zh","target":"en","text":"设备编号为 7020，不是 7200。","reference":"The device number is 7020, not 7200."},
+  {"source":"zh","target":"en","text":"警报响起后，工作人员没有进入危险区域。","reference":"After the alarm sounded, the staff did not enter the hazardous area."},
+  {"source":"zh","target":"en","text":"请把音量调到 30%，不要重启服务。","reference":"Set the volume to 30%; do not restart the service."},
+  {"source":"en","target":"zh","text":"The meeting starts at 9:30, not 9:13.","reference":"会议九点三十分开始，不是九点十三分。"},
+  {"source":"en","target":"zh","text":"Do not disconnect the camera while recording.","reference":"录制期间不要断开摄像头。"},
+  {"source":"en","target":"zh","text":"The board has 16 GB of memory and runs locally.","reference":"这块板有 16 GB 内存，并在本地运行。"},
+  {"source":"en","target":"zh","text":"Please check the microphone before the next call.","reference":"请在下次通话前检查麦克风。"}
+]

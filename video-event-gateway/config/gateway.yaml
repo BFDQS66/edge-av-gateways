@@ -1,0 +1,19 @@
+%YAML:1.0
+---
+# Start veg_rtsp_server first, or replace each uri with a real camera URL.
+http_port: 8088
+reconnect_ms: 1000
+output_dir: "output/gateway"
+warmup_frames: 20
+threshold: 35
+min_area: 300.0
+background_alpha: 0.01
+match_distance: 70.0
+min_track_hits: 3
+max_missed_frames: 5
+line_x: 0.5
+zone: [0.58, 0.20, 0.90, 0.85]
+dwell_frames: 15
+sources:
+  - { id: "camera_a", uri: "rtsp://127.0.0.1:8554/crossing" }
+  - { id: "camera_b", uri: "rtsp://127.0.0.1:8554/crossing" }

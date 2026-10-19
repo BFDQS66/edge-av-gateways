@@ -1,0 +1,20 @@
+%YAML:1.0
+---
+# Run scripts/fetch_ncnn_demo.sh and generate the person fixture first.
+http_port: 8089
+reconnect_ms: 1000
+output_dir: "output/gateway-ai"
+detector: "ncnn_yolov8"
+model_param: "../data/models/yolov8n.param"
+model_bin: "../data/models/yolov8n.bin"
+model_size: 640
+class_id: 0
+score_threshold: 0.25
+min_track_hits: 2
+max_missed_frames: 3
+match_distance: 100.0
+line_x: 0.5
+zone: [0.01, 0.01, 0.99, 0.99]
+dwell_frames: 5
+sources:
+  - { id: "people_demo", uri: "data/people_demo.avi" }

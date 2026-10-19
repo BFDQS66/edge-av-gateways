@@ -1,0 +1,11 @@
+[Unit]
+Description=Check offline speech gateway every minute
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+Persistent=true
+Unit=speech-gateway-health.service
+
+[Install]
+WantedBy=timers.target

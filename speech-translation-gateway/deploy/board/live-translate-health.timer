@@ -1,0 +1,10 @@
+[Unit]
+Description=Check Orange Pi continuous translation every minute
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+Unit=live-translate-health.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,8 @@
+/build/
+/deps/
+/models/
+/data/*
+!/data/translation_smoke.json
+/output/
+__pycache__/
+*.tar.bz2

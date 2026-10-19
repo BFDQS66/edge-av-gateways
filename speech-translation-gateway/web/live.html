@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>香橙派 · 实时语音翻译</title>
+  <style>
+    :root { color-scheme: dark; font-family: "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #e7eef9; background: #0b1220; }
+    .shell { max-width: 1500px; margin: auto; padding: clamp(18px, 3vw, 44px); }
+    header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 26px; }
+    .eyebrow { color: #67e8f9; font-size: 0.84rem; letter-spacing: 0.14em; font-weight: 700; }
+    h1 { margin: 5px 0 8px; font-size: clamp(2rem, 3vw, 3.2rem); line-height: 1.14; }
+    .sub { color: #9aabc5; font-size: clamp(0.95rem, 1.2vw, 1.1rem); }
+    .badge { flex: none; margin-top: 7px; padding: 10px 16px; border-radius: 999px; background: #143b34; color: #8ef5cc; font-weight: 700; border: 1px solid #2b8069; }
+    .badge.speaking { background: #534116; color: #ffe298; border-color: #a1781b; }
+    .badge.bad { background: #562a31; color: #ffc5ca; border-color: #a84552; }
+    .controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 0 0 22px; }
+    .direction { display: inline-flex; padding: 4px; border: 1px solid #2b4564; border-radius: 13px; background: #101b2b; gap: 4px; }
+    button { border: 0; background: transparent; color: #a8bed8; border-radius: 9px; padding: 11px 17px; font: inherit; font-weight: 700; cursor: pointer; }
+    button[aria-pressed="true"] { background: #1b6691; color: white; }
+    .test { border: 1px solid #2b8069; color: #8ef5cc; }
+    .test:hover { background: #143b34; }
+    button:focus-visible, input:focus-visible { outline: 2px solid #67e8f9; outline-offset: 2px; }
+    .switch { display: inline-flex; align-items: center; gap: 9px; padding: 11px 15px; border: 1px solid #2b4564; border-radius: 13px; color: #d4e6f8; }
+    .switch input { accent-color: #35c79e; width: 18px; height: 18px; margin: 0; }
+    .jack { color: #8aa0bd; }
+    .pipeline { color: #83c8e3; margin: -8px 0 20px; min-height: 22px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .card { min-height: 290px; padding: clamp(23px, 2.5vw, 38px); border: 1px solid #26374e; border-radius: 24px; background: #131f30; box-shadow: 0 14px 40px #0003; }
+    .card.en { background: #14263a; border-color: #254e70; }
+    .label { font-size: 1rem; font-weight: 700; color: #91a9c6; letter-spacing: 0.08em; }
+    .text { margin-top: 26px; font-size: clamp(2rem, 3.2vw, 3.6rem); line-height: 1.34; font-weight: 650; overflow-wrap: anywhere; }
+    .placeholder { color: #6d819c; font-weight: 400; }
+    .meta { min-height: 27px; margin-top: 22px; color: #7ed9ec; font-variant-numeric: tabular-nums; }
+    .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin: 20px 0 26px; }
+    .stat { padding: 15px 18px; border: 1px solid #26374e; border-radius: 15px; background: #101b2b; }
+    .stat small { display: block; margin-bottom: 6px; color: #8aa0bd; }
+    .stat strong { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+    h2 { font-size: 1.15rem; margin: 0 0 12px; }
+    .history { border: 1px solid #26374e; border-radius: 18px; background: #101b2b; overflow: hidden; }
+    .row { display: grid; grid-template-columns: 120px 1fr 1fr 120px; gap: 16px; padding: 16px 20px; border-bottom: 1px solid #23334a; align-items: start; }
+    .row:last-child { border-bottom: 0; }
+    .row time, .row .delay { color: #8ea3be; font-variant-numeric: tabular-nums; }
+    .row .zh, .row .en { overflow-wrap: anywhere; line-height: 1.45; }
+    .empty { padding: 24px 20px; color: #8398b4; }
+    .footer { margin-top: 15px; color: #748ba8; font-size: 0.9rem; }
+    .error { color: #ffc5ca; margin-top: 8px; min-height: 20px; }
+    @media (max-width: 820px) {
+      header { flex-direction: column; } .grid { grid-template-columns: 1fr; }
+      .card { min-height: 210px; } .stats { grid-template-columns: repeat(2, 1fr); }
+      .row { grid-template-columns: 80px 1fr; } .row .en { grid-column: 2; }
+      .row .delay { grid-column: 2; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <div class="eyebrow">ORANGE PI 5 PRO · OFFLINE</div>
+        <h1>实时语音翻译</h1>
+        <div class="sub">板载麦克风持续监听 · 中英双向翻译 · Kokoro 耳机播报 · 清晰语音最长约 8 秒、微弱语音约 12 秒切段</div>
+      </div>
+      <div id="badge" class="badge">正在连接…</div>
+    </header>
+    <section class="controls" aria-label="翻译设置">
+      <div class="direction" role="group" aria-label="翻译方向">
+        <button id="zhToEn" type="button" aria-pressed="true">中文 → English</button>
+        <button id="enToZh" type="button" aria-pressed="false">English → 中文</button>
+      </div>
+      <label class="switch"><input id="playbackEnabled" type="checkbox" checked>耳机播报译文</label>
+      <button id="headphoneTest" class="test" type="button">试听耳机</button>
+      <span id="jack" class="jack">正在检测耳机…</span>
+    </section>
+    <div id="pipeline" class="pipeline">正在准备语音服务…</div>
+    <section class="grid" aria-live="polite">
+      <article class="card">
+        <div id="sourceLabel" class="label">中文识别</div>
+        <div id="sourceText" class="text placeholder">等待你说话…</div>
+        <div id="sourceMeta" class="meta"></div>
+      </article>
+      <article class="card en">
+        <div id="targetLabel" class="label">English Translation</div>
+        <div id="targetText" class="text placeholder">Translation will appear here.</div>
+        <div id="targetMeta" class="meta"></div>
+      </article>
+    </section>
+    <section class="stats">
+      <div class="stat"><small>已识别句子</small><strong id="recognized">0</strong></div>
+      <div class="stat"><small>最近识别耗时</small><strong id="stt">—</strong></div>
+      <div class="stat"><small>最近翻译耗时</small><strong id="translation">—</strong></div>
+      <div class="stat"><small>最近语音合成</small><strong id="tts">—</strong></div>
+      <div class="stat"><small>耳机已播报</small><strong id="played">0</strong></div>
+      <div class="stat"><small>麦克风电平</small><strong id="level">—</strong></div>
+    </section>
+    <h2>最近结果</h2>
+    <section id="history" class="history"><div class="empty">结果会持续显示在这里，关闭页面也不会停止板端监听。</div></section>
+    <div id="error" class="error"></div>
+    <div class="footer">纯本地推理 · 音频仅在内存处理 · 板端不保存录音和应用日志 · E 盘收集运行记录</div>
+  </main>
+  <script>
+    let instance = null;
+    let seq = 0;
+    let busy = false;
+    let selectedSource = null;
+    const $ = id => document.getElementById(id);
+    const ms = value => Number(value).toFixed(0) + ' ms';
+
+    function labels(source) {
+      $('sourceLabel').textContent = source === 'en' ? 'English Recognition' : '中文识别';
+      $('targetLabel').textContent = source === 'en' ? '中文翻译' : 'English Translation';
+    }
+
+    function clearCurrent(source) {
+      labels(source);
+      $('sourceText').textContent = source === 'en' ? 'Waiting for speech…' : '等待你说话…';
+      $('targetText').textContent = source === 'en' ? '等待中文译文…' : 'Translation will appear here.';
+      $('sourceText').classList.add('placeholder');
+      $('targetText').classList.add('placeholder');
+      $('sourceMeta').textContent = '';
+      $('targetMeta').textContent = '';
+    }
+
+    async function saveConfig(source, enabled) {
+      try {
+        const response = await fetch('/api/config', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({source, playback_enabled: enabled})
+        });
+        if (!response.ok) throw new Error('设置失败：HTTP ' + response.status);
+        const state = await response.json();
+        applyConfig(state);
+        $('error').textContent = '';
+      } catch (error) { $('error').textContent = String(error); }
+    }
+
+    function applyConfig(state) {
+      if (selectedSource !== null && selectedSource !== state.source) clearCurrent(state.source);
+      if (selectedSource === null) labels(state.source);
+      selectedSource = state.source;
+      $('zhToEn').setAttribute('aria-pressed', state.source === 'zh');
+      $('enToZh').setAttribute('aria-pressed', state.source === 'en');
+      $('playbackEnabled').checked = state.playback_enabled;
+      $('jack').textContent = !state.headphones_connected ? '○ 未检测到耳机，播报暂停' :
+        state.playback_state === 'playing' ? '● 耳机正在播报' : '● 耳机已连接';
+    }
+
+    function showEvent(event) {
+      if (event.kind !== 'translation') return;
+      labels(event.source);
+      $('sourceText').textContent = event.transcript;
+      $('sourceText').classList.remove('placeholder');
+      $('targetText').textContent = event.translation || '（无译文）';
+      $('targetText').classList.remove('placeholder');
+      $('sourceMeta').textContent = event.time + ' · 语音 ' + event.audio_sec + ' 秒';
+      $('targetMeta').textContent = '音频切段后生成译文 ' + ms(event.display_delay_ms) + ' · 页面刷新最多再需 1 秒';
+      const history = $('history');
+      if (history.querySelector('.empty')) history.replaceChildren();
+      const row = document.createElement('div'); row.className = 'row';
+      const time = document.createElement('time'); time.textContent = event.time.slice(11, 19);
+      const zh = document.createElement('div'); zh.className = 'zh';
+      zh.textContent = (event.source === 'en' ? 'EN · ' : '中 · ') + event.transcript;
+      const en = document.createElement('div'); en.className = 'en';
+      en.textContent = (event.target === 'zh' ? '中 · ' : 'EN · ') + (event.translation || '（无译文）');
+      const delay = document.createElement('div'); delay.className = 'delay'; delay.textContent = ms(event.display_delay_ms);
+      row.append(time, zh, en, delay);
+      history.prepend(row);
+      while (history.children.length > 50) history.lastElementChild.remove();
+    }
+
+    async function refresh() {
+      if (busy) return;
+      busy = true;
+      try {
+        let response = await fetch('/api/state?since=' + seq, {cache: 'no-store'});
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        let state = await response.json();
+        if (instance !== null && instance !== state.instance_id) {
+          instance = state.instance_id; seq = 0; $('history').replaceChildren();
+          response = await fetch('/api/state?since=0', {cache: 'no-store'});
+          state = await response.json();
+        }
+        instance = state.instance_id;
+        for (const event of state.events) showEvent(event);
+        seq = state.seq;
+        applyConfig(state);
+        $('recognized').textContent = state.recognized;
+        $('stt').textContent = state.last_stt_ms ? ms(state.last_stt_ms) : '—';
+        $('translation').textContent = state.last_translation_ms ? ms(state.last_translation_ms) : '—';
+        $('tts').textContent = state.last_tts_ms ? ms(state.last_tts_ms) : '—';
+        $('played').textContent = state.played;
+        $('level').textContent = state.rms.toFixed(0);
+        const pipeline = [];
+        if (state.inference_state === 'processing' || state.queue_depth)
+          pipeline.push('正在识别和翻译' + (state.queue_depth ? ' · 排队 ' + state.queue_depth + ' 段' : ''));
+        if (state.tts_state === 'synthesizing' || state.tts_queue_depth)
+          pipeline.push('正在合成耳机语音' + (state.tts_queue_depth ? ' · 排队 ' + state.tts_queue_depth + ' 段' : ''));
+        if (state.forced_chunks) pipeline.push('连续讲话已自动切段 ' + state.forced_chunks + ' 次');
+        if (state.stt_fallback_accepted) pipeline.push('弱语音补救识别成功 ' + state.stt_fallback_accepted + ' 次');
+        $('pipeline').textContent = pipeline.join(' · ') || '等待讲话；翻译结果会先显示，耳机语音随后播放。';
+        const badge = $('badge');
+        badge.className = 'badge' + (state.mode === 'speaking' ? ' speaking' :
+          (state.last_audio_age_sec === null || state.last_audio_age_sec > 12 ? ' bad' : ''));
+        badge.textContent = state.mode === 'speaking' ? '● 正在讲话' :
+          state.mode === 'listening' ? '● 正在监听' : '● ' + state.mode;
+        $('error').textContent = state.last_error ?
+          ('最近错误：' + state.last_error + ' · 发生 ' + state.errors + ' 次') :
+          (state.dropped ? '推理排队过长，已丢弃 ' + state.dropped + ' 句' : '');
+      } catch (error) {
+        $('badge').className = 'badge bad';
+        $('badge').textContent = '● 连接中断';
+        $('error').textContent = String(error);
+      } finally { busy = false; }
+    }
+    $('zhToEn').addEventListener('click', () => saveConfig('zh', $('playbackEnabled').checked));
+    $('enToZh').addEventListener('click', () => saveConfig('en', $('playbackEnabled').checked));
+    $('playbackEnabled').addEventListener('change', () =>
+      saveConfig(selectedSource || 'zh', $('playbackEnabled').checked));
+    $('headphoneTest').addEventListener('click', async () => {
+      try {
+        const response = await fetch('/api/headphone-test', {method: 'POST'});
+        if (!response.ok) throw new Error('试听失败：' + await response.text());
+        $('error').textContent = '试听语音已排队，请注意耳机声音。';
+      } catch (error) { $('error').textContent = String(error); }
+    });
+    refresh();
+    setInterval(refresh, 1000);
+  </script>
+</body>
+</html>

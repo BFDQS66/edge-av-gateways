@@ -1,0 +1,18 @@
+%YAML:1.0
+---
+# Override source and output_dir with --source and --output as needed.
+source: "data/synthetic_crossing.avi"
+output_dir: "output"
+queue_capacity: 3
+warmup_frames: 20
+threshold: 35
+min_area: 300.0
+background_alpha: 0.01
+match_distance: 70.0
+min_track_hits: 3
+max_missed_frames: 5
+line_x: 0.5
+# Normalized [left, top, right, bottom].
+zone: [0.58, 0.20, 0.90, 0.85]
+# Emit a dwell event after this many consecutive tracked frames in the zone (0 disables).
+dwell_frames: 0

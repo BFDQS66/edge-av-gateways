@@ -1,0 +1,21 @@
+[Unit]
+Description=Offline speech inference gateway
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=%h/workspace/speech-translation-gateway
+ExecStart=%h/workspace/speech-translation-gateway/build/speech_server %h/workspace/speech-translation-gateway
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=10
+LimitNOFILE=1024
+TasksMax=64
+MemoryMax=1500M
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,21 @@
+[Unit]
+Description=Local Qwen3 translation model via llama.cpp
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=%h/workspace/speech-translation-gateway
+ExecStart=%h/workspace/speech-translation-gateway/deps/llama.cpp/build/bin/llama-server -m %h/workspace/speech-translation-gateway/models/qwen3-1.7b-q4km/Qwen3-1.7B-Q4_K_M.gguf --alias qwen3-1.7b-q4km --host 127.0.0.1 --port 8766 --jinja --no-ui --metrics -c 2048 -t 2 -np 1 -b 256 -ub 128
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+MemoryMax=2500M
+TasksMax=128
+LimitNOFILE=1024
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=default.target

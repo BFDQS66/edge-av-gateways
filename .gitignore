@@ -1,0 +1,15 @@
+/*
+!/.gitignore
+!/.gitattributes
+!/AGENTS.md
+!/README.md
+!/speech-translation-gateway/
+!/video-event-gateway/
+
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.key
+**/.venv/
+**/__pycache__/
