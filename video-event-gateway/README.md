@@ -2,7 +2,7 @@
 
 Ubuntu 上运行的 C++17 多路视频事件网关。它从文件或 RTSP 拉取视频，用 OpenCV 处理图像，选择运动检测或 ncnn YOLOv8 人员检测，给目标分配轨迹 ID，再执行越线、区域进入和滞留规则。事件写入 JSONL，证据保存为 PNG；Drogon 提供状态、事件查询和 Prometheus 文本指标。
 
-当前开发和验证都在 Ubuntu 虚拟机完成。板卡部署属于后续阶段。项目中附带的 RTSP 服务器用于发布测试录像，便于没有摄像头时验证完整网络链路。
+原有的事件网关开发和验证在 Ubuntu 虚拟机完成。Orange Pi 5 Pro 上已部署独立的 ZLMediaKit 媒体服务，并用合成视频完成 RTSP/RTMP 双协议回环和 Windows 跨设备解码；CSI 摄像头、板端 AI 和两者集成仍待完成。详见[板端流媒体基线](docs/streaming_board_smoke.md)。项目中附带的 `veg_rtsp_server` 继续用于离线测试录像。
 
 RK3588S 上的 RTSP/RTMP 智能视频网关扩展见[实施规划](docs/streaming_roadmap.md)。当前 CSI 摄像头尚未在板端枚举出采集设备，优先完成摄像头出图和双协议流式闭环，再加入 RKNN 推理。
 
