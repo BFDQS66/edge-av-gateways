@@ -3,12 +3,14 @@
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <csignal>
 #include <cstdint>
 #include <cstdlib>
 #include <deque>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -16,6 +18,8 @@
 #include <thread>
 #include <utility>
 #include <vector>
+
+#include "audio_asr.hpp"
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -43,10 +47,16 @@ void check(int code, const char* action) {
 struct Options {
   std::string listen;
   std::string publish;
+  std::string publish_token_file;
   int delay_ms = 8000;
   size_t max_bytes = 64U * 1024U * 1024U;
   bool demo_allow = false;
   std::vector<std::pair<double, double>> blocks;
+  std::vector<std::pair<double, double>> reviews;
+  int asr_port = 0;
+  int asr_timeout_ms = 3000;
+  std::vector<std::string> block_terms;
+  std::vector<std::string> review_terms;
 };
 
 double positive_number(const std::string& value, const char* name) {
@@ -70,6 +80,7 @@ Options parse(int argc, char** argv) {
     const std::string value = argv[++i];
     if (arg == "--listen") options.listen = value;
     else if (arg == "--publish") options.publish = value;
+    else if (arg == "--publish-token-file") options.publish_token_file = value;
     else if (arg == "--delay-ms") {
       const double delay = positive_number(value, "delay");
       if (delay > 60000) throw std::runtime_error("delay exceeds 60 seconds");
@@ -79,18 +90,46 @@ Options parse(int argc, char** argv) {
       if (mib < 1 || mib > 1024) throw std::runtime_error("buffer size must be 1..1024 MiB");
       options.max_bytes = static_cast<size_t>(mib * 1024 * 1024);
     }
-    else if (arg == "--demo-block") {
+    else if (arg == "--asr-port") {
+      const double port = positive_number(value, "ASR port");
+      if (port < 1024 || port > 65535 || port != std::floor(port))
+        throw std::runtime_error("ASR port must be 1024..65535");
+      options.asr_port = static_cast<int>(port);
+    } else if (arg == "--asr-timeout-ms") {
+      const double timeout = positive_number(value, "ASR timeout");
+      if (timeout < 100 || timeout > 10000 || timeout != std::floor(timeout))
+        throw std::runtime_error("ASR timeout must be 100..10000 ms");
+      options.asr_timeout_ms = static_cast<int>(timeout);
+    } else if (arg == "--block-term") {
+      if (value.empty()) throw std::runtime_error("empty block term");
+      options.block_terms.push_back(value);
+    } else if (arg == "--review-term") {
+      if (value.empty()) throw std::runtime_error("empty review term");
+      options.review_terms.push_back(value);
+    } else if (arg == "--demo-block" || arg == "--demo-review") {
       const auto colon = value.find(':');
-      if (colon == std::string::npos) throw std::runtime_error("--demo-block needs START:END");
+      if (colon == std::string::npos) throw std::runtime_error(arg + " needs START:END");
       const double start = positive_number(value.substr(0, colon), "block start");
       const double end = positive_number(value.substr(colon + 1), "block end");
       if (end <= start) throw std::runtime_error("block end must exceed start");
-      options.blocks.emplace_back(start, end);
+      (arg == "--demo-block" ? options.blocks : options.reviews).emplace_back(start, end);
     } else throw std::runtime_error("unknown option: " + arg);
   }
-  if (options.listen.empty() || options.publish.empty() || !options.demo_allow)
-    throw std::runtime_error("required: --listen URL --publish URL --demo-allow");
+  if (options.listen.empty() || options.publish.empty() ||
+      (!options.demo_allow && options.asr_port == 0))
+    throw std::runtime_error("required: --listen URL --publish URL and --demo-allow or --asr-port");
+  if ((!options.block_terms.empty() || !options.review_terms.empty()) && !options.asr_port)
+    throw std::runtime_error("text rules require --asr-port");
   if (options.listen == options.publish) throw std::runtime_error("input and output URL must differ");
+  if (!options.publish_token_file.empty()) {
+    std::ifstream token_file(options.publish_token_file);
+    std::string token;
+    if (!std::getline(token_file, token) || token.size() < 32 ||
+        !std::all_of(token.begin(), token.end(), [](unsigned char c) {
+          return std::isalnum(c) || c == '-' || c == '_';
+        })) throw std::runtime_error("invalid publish token file");
+    options.publish += "?token=" + token;
+  }
   return options;
 }
 
@@ -146,7 +185,7 @@ class Output {
     av_dict_free(&mux_options);
     check(header_status, "write FLV header");
     header_written_ = true;
-    std::cout << "output_connected=" << url_ << std::endl;
+    std::cout << "output_connected=yes" << std::endl;
   }
 
   Output(const Output&) = delete;
@@ -208,7 +247,11 @@ class Output {
 class Gate {
  public:
   Gate(AVFormatContext* input, const Options& options)
-      : input_(input), options_(options) {}
+      : input_(input), options_(options) {
+    if (options_.asr_port)
+      asr_ = std::make_unique<veg::AudioAsr>(input, options_.asr_port,
+                                              options_.asr_timeout_ms);
+  }
 
   void accept(PacketPtr packet) {
     if (packet->stream_index < 0 ||
@@ -223,7 +266,8 @@ class Gate {
                           (packet->flags & AV_PKT_FLAG_KEY);
     if (keyframe && current_.has_keyframe) finish_current(stamp);
     if (keyframe) current_.has_keyframe = true;
-    current_.start_us = std::min(current_.start_us, stamp);
+    if (keyframe) current_.start_us = stamp;
+    else if (!current_.has_keyframe) current_.start_us = std::min(current_.start_us, stamp);
     const int64_t duration = av_rescale_q(packet->duration, stream.time_base, AV_TIME_BASE_Q);
     current_.end_us = std::max(current_.end_us, stamp + std::max<int64_t>(duration, 1));
     current_.bytes += static_cast<size_t>(packet->size);
@@ -238,28 +282,32 @@ class Gate {
     if (!current_.packets.empty()) finish_current(current_.end_us);
     drain(true);
     std::cout << "allowed_gops=" << allowed_ << " blocked_gops=" << blocked_
+              << " review_gops=" << reviewed_ << " asr_calls=" << asr_calls_
+              << " asr_errors=" << asr_errors_
               << " filtered_audio_packets=" << filtered_audio_packets_
               << " peak_buffer_bytes=" << peak_bytes_ << std::endl;
   }
 
  private:
   void finish_current(int64_t next_key_us) {
-    current_.end_us = std::max(current_.end_us, next_key_us);
+    // The next keyframe is the exclusive GOP boundary. Audio packets received
+    // early with timestamps beyond it are discarded before publishing.
+    if (next_key_us > current_.start_us) current_.end_us = next_key_us;
     current_.completed_at_us = av_gettime_relative();
     ready_.push_back(std::move(current_));
     current_ = Gop{};
     peak_bytes_ = std::max(peak_bytes_, buffered_bytes_);
   }
 
-  bool is_blocked(const Gop& gop) const {
+  bool overlaps(const Gop& gop, const std::vector<std::pair<double, double>>& ranges) const {
     const double start = static_cast<double>(gop.start_us - base_us_) / AV_TIME_BASE;
     const double end = static_cast<double>(gop.end_us - base_us_) / AV_TIME_BASE;
-    for (const auto& range : options_.blocks)
+    for (const auto& range : ranges)
       if (start < range.second && end > range.first) return true;
     return false;
   }
 
-  bool blocked_audio_packet(const AVPacket& packet) const {
+  bool blocked_audio_packet(const AVPacket& packet, const Gop& gop) const {
     const AVStream& stream = *input_->streams[packet.stream_index];
     if (stream.codecpar->codec_type != AVMEDIA_TYPE_AUDIO) return false;
     const int64_t stamp = packet_us(packet, stream);
@@ -267,9 +315,39 @@ class Gate {
     const double duration = static_cast<double>(av_rescale_q(
         packet.duration, stream.time_base, AV_TIME_BASE_Q)) / AV_TIME_BASE;
     const double end = start + std::max(duration, 0.000001);
+    if (stamp < gop.start_us || stamp + std::max<int64_t>(1,
+        av_rescale_q(packet.duration, stream.time_base, AV_TIME_BASE_Q)) > gop.end_us)
+      return true;  // Boundary audio cannot be released before the adjacent GOP decision.
     for (const auto& range : options_.blocks)
       if (start < range.second && end > range.first) return true;
+    for (const auto& range : options_.reviews)
+      if (start < range.second && end > range.first) return true;
     return false;
+  }
+
+  enum class Decision { allow, review, block };
+
+  Decision decide(const Gop& gop) {
+    if (!gop.has_keyframe || overlaps(gop, options_.blocks)) return Decision::block;
+    if (overlaps(gop, options_.reviews)) return Decision::review;
+    if (!asr_) return Decision::allow;
+    std::vector<AVPacket*> audio;
+    for (const auto& packet : gop.packets)
+      if (input_->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
+        audio.push_back(packet.get());
+    try {
+      const std::string transcript = asr_->recognize(audio);
+      ++asr_calls_;
+      for (const auto& term : options_.block_terms)
+        if (transcript.find(term) != std::string::npos) return Decision::block;
+      for (const auto& term : options_.review_terms)
+        if (transcript.find(term) != std::string::npos) return Decision::review;
+      return Decision::allow;
+    } catch (const std::exception& error) {
+      ++asr_errors_;
+      std::cerr << "ASR unavailable: " << error.what() << "; review GOP" << std::endl;
+      return Decision::review;
+    }
   }
 
   void drain(bool wait) {
@@ -283,12 +361,15 @@ class Gate {
       ready_.pop_front();
       buffered_bytes_ -= gop.bytes;
       const int64_t duration = std::max<int64_t>(0, gop.end_us - gop.start_us);
-      if (!gop.has_keyframe || is_blocked(gop)) {
+      const Decision decision = decide(gop);
+      if (decision != Decision::allow) {
         // Dropping a complete GOP avoids publishing undecodable dependent frames.
         if (output_) output_->skip(duration);
         else skipped_before_output_us_ += duration;
-        ++blocked_;
-        std::cout << "blocked_gop start_ms=" << (gop.start_us - base_us_) / 1000
+        if (decision == Decision::block) ++blocked_;
+        else ++reviewed_;
+        std::cout << (decision == Decision::block ? "blocked_gop" : "review_gop")
+                  << " start_ms=" << (gop.start_us - base_us_) / 1000
                   << " end_ms=" << (gop.end_us - base_us_) / 1000 << std::endl;
         continue;
       }
@@ -301,7 +382,7 @@ class Gate {
       const auto old_size = gop.packets.size();
       gop.packets.erase(std::remove_if(gop.packets.begin(), gop.packets.end(),
                                        [&](const PacketPtr& packet) {
-                                         return blocked_audio_packet(*packet);
+                                         return blocked_audio_packet(*packet, gop);
                                        }),
                         gop.packets.end());
       filtered_audio_packets_ += old_size - gop.packets.size();
@@ -316,11 +397,15 @@ class Gate {
   Gop current_;
   std::deque<Gop> ready_;
   std::unique_ptr<Output> output_;
+  std::unique_ptr<veg::AudioAsr> asr_;
   size_t buffered_bytes_ = 0;
   size_t peak_bytes_ = 0;
   int64_t skipped_before_output_us_ = 0;
   uint64_t allowed_ = 0;
   uint64_t blocked_ = 0;
+  uint64_t reviewed_ = 0;
+  uint64_t asr_calls_ = 0;
+  uint64_t asr_errors_ = 0;
   uint64_t filtered_audio_packets_ = 0;
 };
 
@@ -342,7 +427,8 @@ int main(int argc, char** argv) {
     std::unique_ptr<AVFormatContext, InputDeleter> input(raw_input);
     check(avformat_find_stream_info(input.get(), nullptr), "read stream metadata");
     std::cout << "ingest_connected=" << options.listen << " delay_ms=" << options.delay_ms
-              << " mode=DEMO_ONLY" << std::endl;
+              << " mode=" << (options.asr_port ? "EXPERIMENTAL_ASR" : "DEMO_ONLY")
+              << std::endl;
     Gate gate(input.get(), options);
     uint64_t received_packets = 0;
     while (!stopping.load()) {

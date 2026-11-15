@@ -1,13 +1,13 @@
 [Unit]
-Description=Edge AV live RTMP gate (transport demo; no AI moderation)
-Wants=network-online.target edge-av-hls.service
-After=network-online.target edge-av-hls.service
+Description=Edge AV experimental live RTMP speech-review gate
+Wants=network-online.target edge-av-hls.service speech-gateway.service
+After=network-online.target edge-av-hls.service speech-gateway.service
 ConditionPathExists=/home/orangepi/edge-av/live-gate/bin/veg_live_gate
 
 [Service]
 Type=simple
 WorkingDirectory=/home/orangepi/edge-av/live-gate
-ExecStart=/home/orangepi/edge-av/live-gate/bin/veg_live_gate --listen rtmp://192.168.1.101:11935/live/obs --publish rtmp://192.168.1.101:11936/approved/obs --delay-ms 8000 --max-buffer-mib 64 --demo-allow
+ExecStart=/home/orangepi/edge-av/live-gate/bin/veg_live_gate --listen rtmp://192.168.1.101:11935/live/obs --publish rtmp://192.168.1.101:11936/approved/obs --publish-token-file /home/orangepi/edge-av/run/publish-token --delay-ms 8000 --max-buffer-mib 64 --asr-port 8765 --asr-timeout-ms 3000 --review-term 测试拦截 --block-term 测试阻断
 Restart=always
 RestartSec=2
 StartLimitIntervalSec=0

@@ -1,8 +1,8 @@
 # Video Event Gateway
 
-**当前新方向：[EdgeLiveGuard：OBS 直播音视频审核网关规划书](docs/live_moderation_plan.md)。** OBS 通过 RTMP 推入接收专用端口；C++ 网关有界缓存音视频，再发布到独立 ZLMediaKit 的 RTSP/HLS 输出。传输闸门原型已实现，真正的 AI 审核、推流鉴权和手机浏览器实机播放尚未实现；原有越线检测代码是早期视频事件原型。新方向不依赖 CSI 摄像头。
+**当前新方向：[EdgeLiveGuard：OBS 直播音视频审核网关规划书](docs/live_moderation_plan.md)。** OBS 通过 RTMP 推入接收专用端口；C++ 网关有界缓存音视频，再发布到独立 ZLMediaKit 的 RTSP/HLS 输出。放行流已启用发布鉴权，闸门已调用板端 STT 并以演示短语验证 `allow/review/block`。真实违规类别、视觉模型、准确率评测和手机浏览器实机播放尚未完成；原有越线检测代码是早期视频事件原型。新方向不依赖 CSI 摄像头。
 
-已新增[直播传输闸门 MVP](docs/live_gate_mvp.md)：C++/FFmpeg 接收 OBS RTMP，按 GOP 在有界内存中延迟发布，可用命令行模拟拦截时间段。**当前 `--demo-allow` 会放行其他所有时段，不含 AI 审核，不可把它当作内容安全服务。** OBS 实际推流、虚拟机[Qt 单路播放器](qt-viewer/README.md)和 HLS 播放列表/TS 分片已验证。
+已新增[直播传输闸门 MVP 与实测](docs/live_gate_mvp.md)：C++/FFmpeg 接收 OBS RTMP，按 GOP 在有界内存中延迟发布；可模拟拦截，也可调用板端 SenseVoice STT 执行演示文本规则。**“测试拦截/测试阻断”只是链路测试标签，不代表实际内容审核能力。** OBS 实际推流、虚拟机[Qt 单路播放器](qt-viewer/README.md)和 HLS 播放列表/TS 分片已验证。
 
 ## 早期视频事件原型
 

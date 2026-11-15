@@ -1,0 +1,17 @@
+[Unit]
+Description=Edge AV approved-stream publish authorization
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/orangepi/edge-av/live-gate/scripts/publish_auth.py --publisher-ip 192.168.1.101 --port 18993 --token-file /home/orangepi/edge-av/run/publish-token
+Restart=always
+RestartSec=2
+StandardOutput=null
+StandardError=null
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077
+
+[Install]
+WantedBy=default.target

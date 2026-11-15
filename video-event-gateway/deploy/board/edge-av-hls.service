@@ -1,7 +1,8 @@
 [Unit]
 Description=Edge AV approved-stream HLS media server
 Wants=network-online.target
-After=network-online.target
+After=network-online.target edge-av-publish-auth.service
+Requires=edge-av-publish-auth.service
 ConditionPathExists=/home/orangepi/edge-av/run/hls-config.ini
 ConditionPathExists=/home/orangepi/edge-av/live-gate/bin/MediaServer-hls
 

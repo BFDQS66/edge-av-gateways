@@ -8,7 +8,7 @@ local development caches are excluded.
 | Project | Current state | Main components |
 | --- | --- | --- |
 | [Speech Translation Gateway](speech-translation-gateway/README.md) | Runs on Ubuntu and Orange Pi 5 Pro (RK3588S) | SenseVoice STT, Silero VAD, Qwen3 translation, Kokoro TTS, C++ HTTP services, live microphone UI, systemd monitoring |
-| [Video Event Gateway](video-event-gateway/README.md) | OBS RTMP → C++ delayed transport gate → HLS/RTSP on Orange Pi; [Qt VM viewer](video-event-gateway/qt-viewer/README.md) verified; AI moderation still planned | FFmpeg packet gate, ZLMediaKit HLS, Qt/GStreamer client, earlier OpenCV event prototype |
+| [Video Event Gateway](video-event-gateway/README.md) | OBS RTMP → C++ delayed gate → HLS/RTSP on Orange Pi; publish auth and experimental STT text rules verified; [Qt VM viewer](video-event-gateway/qt-viewer/README.md) verified; real moderation categories still planned | FFmpeg packet gate and audio decode, ZLMediaKit HLS, SenseVoice STT reuse, Qt/GStreamer client, earlier OpenCV event prototype |
 
 The speech project supports Chinese↔English translation with headphone playback.
 Its [board deployment notes](speech-translation-gateway/docs/board_deployment.md)
