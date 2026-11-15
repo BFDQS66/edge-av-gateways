@@ -36,6 +36,43 @@ find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
   pkg_check_modules(GST_RTSP QUIET IMPORTED_TARGET gstreamer-rtsp-server-1.0)
 endif()
+
+# Optional transport MVP. The board can point this at a small, isolated set of
+# FFmpeg development headers/libraries via FFMPEG_DEV_ROOT.
+set(FFMPEG_DEV_ROOT "" CACHE PATH "Optional extracted FFmpeg -dev package root")
+if(FFMPEG_DEV_ROOT)
+  find_path(AVFORMAT_INCLUDE_DIR NAMES libavformat/avformat.h
+    PATHS "${FFMPEG_DEV_ROOT}/include"
+          "${FFMPEG_DEV_ROOT}/usr/include/${CMAKE_LIBRARY_ARCHITECTURE}"
+    NO_DEFAULT_PATH)
+  find_library(AVFORMAT_LIBRARY NAMES avformat
+    PATHS "${FFMPEG_DEV_ROOT}/lib"
+          "${FFMPEG_DEV_ROOT}/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}"
+    NO_DEFAULT_PATH)
+  find_library(AVCODEC_LIBRARY NAMES avcodec
+    PATHS "${FFMPEG_DEV_ROOT}/lib"
+          "${FFMPEG_DEV_ROOT}/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}"
+    NO_DEFAULT_PATH)
+  find_library(AVUTIL_LIBRARY NAMES avutil
+    PATHS "${FFMPEG_DEV_ROOT}/lib"
+          "${FFMPEG_DEV_ROOT}/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}"
+    NO_DEFAULT_PATH)
+else()
+  find_path(AVFORMAT_INCLUDE_DIR NAMES libavformat/avformat.h
+    PATH_SUFFIXES ${CMAKE_LIBRARY_ARCHITECTURE})
+  find_library(AVFORMAT_LIBRARY NAMES avformat)
+  find_library(AVCODEC_LIBRARY NAMES avcodec)
+  find_library(AVUTIL_LIBRARY NAMES avutil)
+endif()
+if(AVFORMAT_INCLUDE_DIR AND AVFORMAT_LIBRARY AND AVCODEC_LIBRARY AND AVUTIL_LIBRARY)
+  add_executable(veg_live_gate src/live_gate.cpp)
+  target_include_directories(veg_live_gate PRIVATE ${AVFORMAT_INCLUDE_DIR})
+  target_link_libraries(veg_live_gate PRIVATE ${AVFORMAT_LIBRARY} ${AVCODEC_LIBRARY} ${AVUTIL_LIBRARY})
+  target_compile_options(veg_live_gate PRIVATE -Wall -Wextra -Wpedantic)
+  install(TARGETS veg_live_gate RUNTIME DESTINATION bin)
+else()
+  message(STATUS "FFmpeg development files absent; live gate target skipped")
+endif()
 if(GST_RTSP_FOUND)
   add_executable(veg_rtsp_server src/rtsp_server.cpp)
   target_link_libraries(veg_rtsp_server PRIVATE PkgConfig::GST_RTSP)

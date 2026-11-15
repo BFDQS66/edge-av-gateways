@@ -1,0 +1,22 @@
+[Unit]
+Description=Edge AV approved-stream HLS media server
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/home/orangepi/edge-av/run/hls-config.ini
+ConditionPathExists=/home/orangepi/edge-av/live-gate/bin/MediaServer-hls
+
+[Service]
+Type=simple
+WorkingDirectory=/home/orangepi/edge-av/live-gate
+RuntimeDirectory=edge-av-hls
+RuntimeDirectoryMode=0700
+ExecStartPre=/usr/bin/mkdir -p %t/edge-av-hls/www
+ExecStart=/home/orangepi/edge-av/live-gate/bin/MediaServer-hls --config /home/orangepi/edge-av/run/hls-config.ini --log-dir %t/edge-av-hls/log --level 3 --max_day 1 --log-slice 2 --log-size 2 --threads 2
+Restart=on-failure
+RestartSec=3
+StandardOutput=null
+StandardError=null
+UMask=0077
+
+[Install]
+WantedBy=default.target

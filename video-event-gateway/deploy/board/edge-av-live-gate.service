@@ -1,0 +1,20 @@
+[Unit]
+Description=Edge AV live RTMP gate (transport demo; no AI moderation)
+Wants=network-online.target edge-av-hls.service
+After=network-online.target edge-av-hls.service
+ConditionPathExists=/home/orangepi/edge-av/live-gate/bin/veg_live_gate
+
+[Service]
+Type=simple
+WorkingDirectory=/home/orangepi/edge-av/live-gate
+ExecStart=/home/orangepi/edge-av/live-gate/bin/veg_live_gate --listen rtmp://192.168.1.101:11935/live/obs --publish rtmp://192.168.1.101:11936/approved/obs --delay-ms 8000 --max-buffer-mib 64 --demo-allow
+Restart=always
+RestartSec=2
+StartLimitIntervalSec=0
+StandardOutput=null
+StandardError=null
+NoNewPrivileges=true
+UMask=0077
+
+[Install]
+WantedBy=default.target

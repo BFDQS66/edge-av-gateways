@@ -1,6 +1,10 @@
 # Video Event Gateway
 
-**当前新方向：[EdgeLiveGuard：OBS 直播音视频审核网关规划书](docs/live_moderation_plan.md)。** OBS 通过 RTMP 推入私有流；C++ 网关在有界缓冲内分析音视频，仅将审核放行的时段发布给手机和电脑。这个审核闸门和相关模型尚未实现，现有代码是早期视频事件原型。新方向不依赖 CSI 摄像头。
+**当前新方向：[EdgeLiveGuard：OBS 直播音视频审核网关规划书](docs/live_moderation_plan.md)。** OBS 通过 RTMP 推入接收专用端口；C++ 网关有界缓存音视频，再发布到独立 ZLMediaKit 的 RTSP/HLS 输出。传输闸门原型已实现，真正的 AI 审核、推流鉴权和手机浏览器实机播放尚未实现；原有越线检测代码是早期视频事件原型。新方向不依赖 CSI 摄像头。
+
+已新增[直播传输闸门 MVP](docs/live_gate_mvp.md)：C++/FFmpeg 接收 OBS RTMP，按 GOP 在有界内存中延迟发布，可用命令行模拟拦截时间段。**当前 `--demo-allow` 会放行其他所有时段，不含 AI 审核，不可把它当作内容安全服务。** OBS 实际推流、虚拟机[Qt 单路播放器](qt-viewer/README.md)和 HLS 播放列表/TS 分片已验证。
+
+## 早期视频事件原型
 
 Ubuntu 上运行的 C++17 多路视频事件网关。它从文件或 RTSP 拉取视频，用 OpenCV 处理图像，选择运动检测或 ncnn YOLOv8 人员检测，给目标分配轨迹 ID，再执行越线、区域进入和滞留规则。事件写入 JSONL，证据保存为 PNG；Drogon 提供状态、事件查询和 Prometheus 文本指标。
 
